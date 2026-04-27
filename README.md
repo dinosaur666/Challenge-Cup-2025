@@ -1,123 +1,114 @@
 # Challenge-Cup-Huawei-2025 | BUPT-ParCIS
 
 ![Platform](https://img.shields.io/badge/platform-Ascend%20NPU-blue)
-![CANN](https://img.shields.io/badge/CANN-8.1+-orange)
-![Language](https://img.shields.io/badge/language-C%2B%2B%20%2F%20Python-green)
+![CANN](https://img.shields.io/badge/CANN-8.1.RC1-orange)
+![Model](https://img.shields.io/badge/model-Qwen2.5--3B--Instruct-green)
+![Framework](https://img.shields.io/badge/framework-vLLM%20%2B%20vllm--ascend-purple)
 
-华为"挑战杯"参赛项目 —— 基于昇腾 Ascend NPU 的**高性能 Pdist（Pairwise Distance）自定义算子**设计与实现。
-
----
+华为 2025 挑战杯参赛项目 — 基于**昇腾 NPU** 的**大语言模型推理优化**，聚焦模型训练调优与性能加速，助力全栈自主 AI。
 
 ## 项目简介
 
-本项目面向华为昇腾 910B4 NPU，基于 Ascend C 编程模型，实现了一个高度优化的 Pairwise Distance 算子。算子支持多种距离度量（L1、L2、Linf）和双精度模式（FP32/FP16），通过自适应策略选择、负载均衡、流水线优化等技术，在大规模数据场景下实现了相比 CPU 实现 **数千至数万倍** 的加速比。
+本项目参加华为"揭榜挂帅"赛道，赛题要求在昇腾 NPU 硬件上对 3B 及以下参数量大语言模型进行推理优化，在**精度、性能、格式合规**三个维度上取得高分。
+
+- **基座模型**：Qwen2.5-3B-Instruct（3B 参数量）
+- **推理框架**：vLLM + vllm-ascend（昇腾后端插件）
+- **硬件平台**：华为昇腾 NPU (Ascend 910B)
+- **开发环境**：ModelArts + CANN 8.1.RC1
+
+## 赛题任务
+
+模型需要处理四类任务：
+
+| 任务类型 | 说明 | 评估指标 |
+|---------|------|---------|
+| **math** | 数学推理求解 | 精确匹配（LaTeX boxed 答案） |
+| **code-generate** | 根据函数签名和文档实现代码 | pass@3 |
+| **choice** | 中英文多项选择题（ABCD） | 选项匹配 |
+| **generic-generate** | 中英文通用问答 | 内容匹配 |
+
+评分公式：**总分 = 0.4 x 精度分 + 0.4 x 性能分 + 0.2 x 格式分**
 
 ## 目录结构
 
 ```
 Challenge-Cup-Huawei-2025/
-├── Pdist/                           # 算子核心实现
-│   ├── PdistKernel/                 # PyTorch 扩展（快速验证）
-│   ├── PdistKernelInvocation/       # 独立调用程序（性能分析）
-│   ├── PdistFramework/              # 算子框架与构建部署
-│   ├── AclnnInvocationNaive/        # ACLNN API 验证程序
-│   ├── images/                      # 性能可视化图片
-│   └── README.md                    # 算子详细文档（设计/优化/实验）
-├── BUPT-ParCIS-答辩PPT.pptx         # 答辩演示文稿
-├── 挑战杯指导文档.pdf                 # 挑战杯指导文档
-└── 挑战杯-答辩材料.pdf               # 挑战杯答辩材料
+├── 阶段A/                                    # A榜阶段
+│   ├── competitioin_submission-JYC-1/         # 参赛提交包
+│   │   ├── competition_model.py               # 核心推理代码（Competition类）
+│   │   ├── prompt.py                          # Prompt模板与系统提示词
+│   │   ├── data/                              # 训练/测试数据
+│   │   │   ├── A-data.jsonl                   # A榜数据集
+│   │   │   ├── few_shot_2.jsonl               # Few-shot示例
+│   │   │   └── test.jsonl                     # 测试数据
+│   │   ├── dependencies/                      # 离线依赖包
+│   │   ├── custom_kernels/                    # 自定义算子目录
+│   │   ├── requirements.txt                   # Python依赖列表
+│   │   └── Qwen2.5-3B-Instruct/              # 模型文件
+│   ├── 挑战杯指导文档.md                       # A榜完整指导文档
+│   ├── 7月9日  华为茶思会会议纪要.md             # 专家指导会议纪要
+│   ├── SH-05华为技术有限公司-推理大模型的训练调优与性能加速助力全栈自主AI比赛方案(2).pdf
+│   └── 华为云Ascend C算子开发环境搭建手册S5赛季.docx
+│
+├── 阶段B/                                    # B榜阶段
+│   ├── B-参考文档1.md                          # B榜指导文档
+│   ├── B-参考文档2.md                          # B榜补充材料与QA
+│   ├── 吴小鱼-赛题&评分标准解读.pdf
+│   ├── 揭榜挂帅华为赛题算子示例.xlsx
+│   └── 李大帅-算子解读  .pdf
+│
+├── 决赛答辩/                                  # 决赛材料
+│   ├── BUPT-ParCIS-答辩PPT.pptx
+│   └── 挑战杯-答辩材料.pdf
+│
+└── README.md
 ```
 
-## 核心特性
+## 技术方案
 
-- **多距离度量**：支持 L1（曼哈顿）、L2（欧几里得）、Linf（切比雪夫）三种距离计算
-- **双精度支持**：FP32 高精度 / FP16 高性能
-- **自适应策略**：根据数据规模自动选择最优 Reduce 策略（WholeReduce / BlockReduce / 通用 Reduce）
-- **负载均衡**：按输出元素数均匀分配至最多 40 个 AI Core，保证对齐约束
-- **流水线优化**：Double Buffer + 行向量最大复用，IO 与计算重叠
-- **内存优化**：小数据场景下一次性加载至 L2 Cache，减少反复 IO
+### 推理流程
 
-## 性能亮点
+```
+输入 (jsonl) → 按任务类型分组 → Prompt构建（含Few-shot） → vLLM批量推理 → 结果格式化输出
+```
 
-| 数据形状 | p | 精度 | CPU 耗时 (ms) | NPU 耗时 (ms) | 加速比 |
-|---|---|---|---|---|---|
-| [100, 400] | 2.0 | FP32 | 80.81 | 0.78 | **103x** |
-| [100, 400] | 2.0 | FP16 | 99.55 | 0.62 | **161x** |
-| [2024, 3000] | 2.0 | FP32 | 262,417 | 28.60 | **9,176x** |
-| [2024, 3000] | 2.0 | FP16 | 316,423 | 20.65 | **15,325x** |
-| [2024, 3003] | 1.0 | FP16 | 301,563 | 20.63 | **14,617x** |
+### 核心实现
 
-> 更多实验数据见 [Pdist/README.md](Pdist/README.md)。
+- **批量推理**：按任务类型分组批处理，同类型共享 SamplingParams，充分利用 vLLM 并行能力
+- **Prompt 工程**：针对每种任务设计独立的 System Prompt + 2-shot 示例模板，输出格式为 `<answer>` 标签包裹
+- **差异化采样策略**：
+  - `choice`：max_tokens=2048, temperature=0.8
+  - `code-generate`：n=3（pass@3 评估）, max_tokens=2048
+  - `generic-generate`：max_tokens=2048
+  - `math`：max_tokens=2048
+- **格式合规**：输出严格遵循 `...<answer>...</answer>` 格式，支持数学 LaTeX boxed 答案
 
-## 环境要求
+### 环境要求
 
 | 组件 | 版本 |
 |------|------|
-| 硬件 | 华为昇腾 NPU (Ascend 910B4) |
-| CANN | 8.1+ |
-| CMake | 3.16+ |
-| Python | 3.9+ |
-| PyTorch | 需安装 torch_npu |
+| 硬件 | 华为昇腾 NPU (Ascend 910B) |
+| OS | EulerOS 2.10.7 |
+| CANN | 8.1.RC1 |
+| Python | 3.9.10 |
+| PyTorch | 2.5.1 + torch-npu 2.5.1 |
+| vLLM | 0.8.4 |
+| vllm-ascend | 0.8.4rc2 |
 
-## 快速开始
+## 提交说明
 
-### 方法一：PyTorch 扩展（快速验证）
-
-```bash
-cd Pdist/PdistKernel
-# 在 pdist_custom_test.py 中配置 shape / p / dtype
-bash run.sh -v Ascend910B4
-```
-
-### 方法二：独立调用（性能分析）
-
-```bash
-cd Pdist/PdistKernelInvocation
-# 在 main.cpp 和 scripts/gen_data.py 中配置参数
-bash run.sh -v Ascend910B4 -r npu
-```
-
-### 方法三：算子包构建与 ACLNN 验证
-
-```bash
-cd Pdist/PdistFramework
-bash build.sh
-./build_out/custom_opp_hce_aarch64.run
-
-cd ../AclnnInvocationNaive
-# 在 main.cpp 中配置参数
-bash run.sh
-```
-
-## 算子架构
+提交包结构（`competition_submission.zip`，不超过 10GB）：
 
 ```
-┌──────────────────────────────────────────────┐
-│             Application Layer                │
-│   PyTorch App │ ACLNN App │ Standalone App   │
-├──────────────────────────────────────────────┤
-│          PyTorch Extension Layer              │
-│        PdistKernel (Pybind11 + Ascend C)     │
-├──────────────────────────────────────────────┤
-│         Operator Framework Layer              │
-│   PdistFramework (Host + Kernel + Plugin)    │
-├──────────────────────────────────────────────┤
-│        Hardware Abstraction Layer             │
-│         Ascend C / CANN (NPU Hardware)       │
-└──────────────────────────────────────────────┘
+competition_submission.zip
+├── competition_model.py          # 入口：Competition类 + get_results方法
+├── requirements.txt              # 依赖列表
+├── dependencies/                 # 离线依赖包
+├── custom_kernels/               # 自定义算子（.run文件）
+└── Qwen2.5-3B-Instruct/          # 模型文件
 ```
 
-## 关键优化技术
-
-1. **Pattern 编码系统**：将距离类型 + 数据类型 + 数据规模编码为单一 Pattern 值，实现策略的自动分派
-2. **并行负载均衡**：按输出元素数划分任务，保证每个 AI Core 返回 32B 对齐的数据块
-3. **双缓冲流水线**：IO 与计算重叠执行，配合行向量复用最大化 AI Core 利用率
-4. **非对齐处理**：DataCopyPad 零填充 + 尾核截断，适配任意输入长度
-5. **小数据全载入**：整体数据 < 160KB 时一次性加载至 L2 Cache，避免逐条 IO 开销
-
-## 详细文档
-
-算子的完整设计文档（Tiling 切分设计、策略类设计、流水线图解、全部实验数据）请参阅 [Pdist/README.md](Pdist/README.md)。
+判题流程：执行 `.run` 算子 → 安装依赖 → 调用 `get_results()` 推理判分。
 
 ## 团队
 
