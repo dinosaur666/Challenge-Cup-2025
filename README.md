@@ -1,11 +1,11 @@
-# Challenge-Cup-Huawei-2025 | BUPT-ParCIS
+# Challenge-Cup-2025 | BUPT-ParCIS
 
 ![Platform](https://img.shields.io/badge/platform-Ascend%20NPU-blue)
 ![CANN](https://img.shields.io/badge/CANN-8.1.RC1-orange)
 ![Model](https://img.shields.io/badge/model-Qwen2.5--3B--Instruct-green)
 ![Framework](https://img.shields.io/badge/framework-vLLM%20%2B%20vllm--ascend-purple)
 
-华为 2025 挑战杯参赛项目 — 基于**昇腾 NPU** 的**大语言模型推理优化**，聚焦模型训练调优与性能加速，助力全栈自主 AI。
+“挑战杯”2025年度青年科技创新揭榜挂帅擂台赛 — 基于**昇腾 NPU** 的**大语言模型推理优化**，聚焦模型训练调优与性能加速，助力全栈自主 AI。
 
 ## 项目简介
 
